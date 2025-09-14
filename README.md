@@ -16,7 +16,6 @@ https://github.com/pmkol/openwrt-lite/releases
 
 ```
 【首次登陆】
-网口：WAN=eth0
 地址：10.0.0.1（默认）
 用户：root
 密码：空
@@ -161,7 +160,7 @@ Toolchain Description: Clang19(LLVM-LTO) GCC14(MOLD+LTO)
 
 #### 二、配置插件
 
-- 修改 `openwrt/23-config-common-custom` 配置，注释或删除掉不需要的插件
+- 修改 `openwrt/23-config-common-custom` 配置，注释或删除掉不需要的插件，该配置会自动覆盖lite与server配置中的luci插件
 
 - 按照 .config 格式添加需要的插件，例如 `CONFIG_PACKAGE_luci-app-mihomo=y`
 
@@ -253,7 +252,21 @@ bash <(curl -sS https://raw.githubusercontent.com/你的用户名/仓库名/main
 export LAN=10.0.0.1
 ```
 
-#### 启用本地 Kernel Modules 安装源 （For developers）
+#### 更改 LAN 端口数量（For X86_64）
+自定义默认 LAN 端口数量，仅适配4或6个网口的 X86_64 非虚拟化设备
+
+只需在构建固件前执行以下命令即可适配 LAN 端口数量
+
+- 适配4个网口设备（WAN=eth0 | LAN=eth1~eth3）
+```
+export LAN_PORTS=3
+```
+- 适配6个网口设备（WAN=eth0 | LAN=eth1~eth5）
+```
+export LAN_PORTS=5
+```
+
+#### 启用本地 Kernel Modules 安装源（For developers）
 启用该标志时，将会拷贝全部 target packages 到 rootfs 并替换 openwrt_core 源为本地方式，以供离线 `opkg install kmod-xxx` 安装操作
 
 这会增加固件文件大小（大约 70MB），对项目内核版本、模块、补丁 有修改的需求时，该功能可能会有用
@@ -282,6 +295,21 @@ Server版默认会构建 Docker 服务，使用该参数会跳过安装 Docker �
 export NO_DOCKER=y
 ```
 
+#### 启用 OPKG 代理
+仅建议在无法正常访问软件源或下载速度过慢时使用
+
+只需在构建固件前执行以下命令即可启用 OPKG 代理
+
+```
+export OPKG_PROXY=y
+```
+
+如需使用中国大陆的CDN线路请执行以下命令
+
+```
+export OPKG_PROXY=cn
+```
+
 #### 启用 GitHub 代理（仅限本地编译）
 仅建议在无法正常访问 GitHub 或下载速度过慢时使用
 
@@ -301,6 +329,7 @@ export CN_PROXY=y
 
 #### 社区成员
 - [@Joseph Mory](https://github.com/morytyann)
-- [@ApoisL](https://github.com/vernlau)
+- [@Apois](https://github.com/apoiston)
 
-`"Stay hungry, Stay foolish..."`
+[<img src="https://edgeone.ai/media/34fe3a45-492d-4ea4-ae5d-ea1087ca7b4b.png" height="22" alt="Tencent EdgeOne">](https://edgeone.ai/?from=github)
+- CDN acceleration and security protection for this project are sponsored by [Tencent EdgeOne](https://edgeone.ai/?from=github)

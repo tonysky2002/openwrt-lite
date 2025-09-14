@@ -86,6 +86,13 @@ sed -i 's/noinitrd/noinitrd intel_pstate=disable mitigations=off/g' target/linux
 # default LAN IP
 sed -i "s/192.168.1.1/$LAN/g" package/base-files/files/bin/config_generate
 
+# default LAN port count
+if [ "$LAN_PORTS" = "3" ] || [ "$DEV_BUILD" = "y" ]; then
+    sed -i '/^\s*\*)/{n;/"eth0" "eth1"/s//"eth1 eth2 eth3" "eth0"/;}' target/linux/x86/base-files/etc/board.d/02_network
+elif [ "$LAN_PORTS" = "5" ]; then
+    sed -i '/^\s*\*)/{n;/"eth0" "eth1"/s//"eth1 eth2 eth3 eth4 eth5" "eth0"/;}' target/linux/x86/base-files/etc/board.d/02_network
+fi
+
 # GCC Optimization level -O3
 if [ "$platform" = "x86_64" ]; then
     curl -s https://$mirror/openwrt/patch/target-modify_for_x86_64.patch | patch -p1
@@ -146,8 +153,11 @@ mv ../master/base-23.05/iproute2 package/network/utils/iproute2
 rm -rf package/libs/libunwind
 mv ../master/base-23.05/libunwind package/libs/libunwind
 
+# openssl - bump version
+rm -f package/libs/openssl/Makefile
+curl -s https://$mirror/openwrt/patch/openssl/Makefile > package/libs/openssl/Makefile
+
 # openssl - quictls
-[ "$DEV_BUILD" = "y" ] && rm -rf package/libs/openssl && cp -a ../master/openwrt-23.05/package/libs/openssl package/libs/openssl
 pushd package/libs/openssl/patches
     curl -sO https://$mirror/openwrt/patch/openssl/quic/0001-QUIC-Add-support-for-BoringSSL-QUIC-APIs.patch
     curl -sO https://$mirror/openwrt/patch/openssl/quic/0002-QUIC-New-method-to-get-QUIC-secret-length.patch
@@ -195,6 +205,12 @@ pushd package/libs/openssl/patches
     curl -sO https://$mirror/openwrt/patch/openssl/quic/0044-QUIC-Update-metadata-version.patch
 popd
 
+# openssl benchmarks
+pushd package/libs/openssl/patches
+    curl -sO https://$mirror/openwrt/patch/openssl/901-Revert-speed-Pass-IV-to-EVP_CipherInit_ex-for-evp-ru.patch
+    curl -sO https://$mirror/openwrt/patch/openssl/902-Revert-apps-speed.c-Fix-the-benchmarking-for-AEAD-ci.patch
+popd
+
 # openssl urandom
 sed -i "/-openwrt/iOPENSSL_OPTIONS += enable-ktls '-DDEVRANDOM=\"\\\\\"/dev/urandom\\\\\"\"\'\n" package/libs/openssl/Makefile
 
@@ -220,6 +236,10 @@ mv ../master/base-23.05/curl feeds/packages/net/curl
 rm -rf package/libs/libpcap
 mv ../master/base-23.05/libpcap package/libs/libpcap
 
+# libxcrypt
+rm -rf feeds/packages/libs/libxcrypt
+mv ../master/openwrt/package/libs/xcrypt package/libs/xcrypt
+
 # docker
 [ "$DEV_BUILD" = "y" ] && docker_branch=main || docker_branch=openwrt-23.05
 rm -rf feeds/{luci/applications/luci-app-dockerman,packages/utils/docker-compose}
@@ -230,6 +250,7 @@ if [ "$MINIMAL_BUILD" != "y" ]; then
     git clone https://$github/pmkol/packages_utils_dockerd feeds/packages/utils/dockerd -b $docker_branch --depth 1
     git clone https://$github/pmkol/packages_utils_containerd feeds/packages/utils/containerd -b $docker_branch --depth 1
     git clone https://$github/pmkol/packages_utils_runc feeds/packages/utils/runc -b $docker_branch --depth 1
+    sed -i '/cgroupfs-mount/d' feeds/packages/utils/dockerd/Config.in
     sed -i '/sysctl.d/d' feeds/packages/utils/dockerd/Makefile
 fi
 
@@ -272,6 +293,8 @@ pushd feeds/luci
     [ "$MINIMAL_BUILD" != "y" ] && curl -s https://$mirror/openwrt/patch/luci/0006-luci-mod-system-mounts-add-docker-directory-mount-po.patch | patch -p1
     curl -s https://$mirror/openwrt/patch/luci/0007-luci-base-correct-textarea-wrap.patch | patch -p1
     curl -s https://$mirror/openwrt/patch/luci/0008-luci-base-cbifileupload-support-file-browser-mode.patch | patch -p1
+    curl -s https://$mirror/openwrt/patch/luci/0009-luci-base-fix-table-option-does-not-show-with-depends.patch | patch -p1
+    curl -s https://$github/openwrt/luci/commit/089903105f4f01135008b8a22557ae998b9303e9.patch | patch -p1
 popd
 
 # Luci diagnostics.js
@@ -297,6 +320,10 @@ curl -s https://$mirror/openwrt/patch/odhcpd/001-odhcpd-RFC-9096-compliance.patc
 pushd feeds/luci
     curl -s https://$mirror/openwrt/patch/odhcpd/0001-luci-mod-network-add-option-for-ipv6-max-plt-vlt.patch | patch -p1
 popd
+
+# ucode - bump version
+rm -rf package/utils/ucode
+mv ../master/base-23.05/ucode package/utils/ucode
 
 # zlib - bump version
 rm -rf package/libs/zlib
